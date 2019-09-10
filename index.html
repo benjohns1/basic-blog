@@ -31,13 +31,21 @@
             const newPost = () => {
                 const postData = JSON.stringify({
                     title: document.getElementById("newTitle").value,
+                    headers: {
+                        "Authorization": window.sessionStorage.getItem("token"),
+                    },
                     body: document.getElementById("newBody").value,
                 })
                 fetch(`http://localhost:8080/api/v1/post/`, {
                     method: 'POST',
                     body: postData,
-                }).then(rawResponse => {
-                    return rawResponse.json()
+                }).then(resp => {
+                    if (resp.status === 401) {
+                        flashMessage("Please log in to post", "error")
+                        show("login")
+                        return
+                    }
+                    return resp.json()
                 }).then(displayPost).catch(err => {
                     console.error(err)
                 })
@@ -80,23 +88,78 @@
                 el.innerHTML = html
             }
 
+            const login = () => {
+                const postData = JSON.stringify({
+                    user: document.getElementById("loginUsername").value,
+                    password: document.getElementById("loginPassword").value,
+                })
+                fetch(`http://localhost:8080/api/v1/authenticate`, {
+                    method: 'POST',
+                    body: postData,
+                }).then(resp => {
+                    if (resp.status === 401) {
+                        flashMessage("Invalid credentials", "error")
+                        return
+                    }
+                    return resp.text()
+                }).then(authenticationData => {
+                    if (authenticationData) {
+                        window.sessionStorage.setItem("token", authenticationData)
+                        flashMessage("Logged in!")
+                        show("newPost")
+                    }
+                }).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            const flashMessage = (msg, id = "message") => {
+                const el = document.getElementById(id)
+                el.innerHTML = msg
+                setTimeout(() => el.innerHTML = "", 5000)
+            }
+
+            const logout = () => {
+                window.sessionStorage.removeItem("token")
+                flashMessage("Logged out")
+                show("posts")
+            }
+
             const sections = [
                 "posts",
                 "post",
                 "newPost",
+                "login",
             ]
 
+            let currentSection = "posts"
+
             const show = showSection => {
+                currentSection = showSection
+                render()
+            }
+
+            const render = () => {
                 sections.forEach(section => {
-                    document.getElementById(section).style.display = section === showSection ? "block" : "none"
+                    document.getElementById(section).style.display = section === currentSection ? "block" : "none"
+                })
+
+                const loggedin = !!window.sessionStorage.getItem("token")
+                Array.from(document.getElementsByClassName("anonymous")).forEach(el => {
+                    el.style.display = loggedin ? "none" : "inline"
+                })
+                Array.from(document.getElementsByClassName("authenticated")).forEach(el => {
+                    el.style.display = loggedin ? "inline" : "none"
                 })
             }
         </script>
     </head>
     <body onload="getPosts(); show('posts');">
         <nav>
-            <a href="#" onclick="getPosts(); show('posts');">Posts</a> | <a href="#" onclick="show('newPost');">New Post</a> | <a href="#">Login</a> | <a href="#">Logout</a>
+            <a href="#" onclick="getPosts(); show('posts');">Posts</a> | <span class="authenticated"><a href="#"  onclick="show('newPost')">New Post</a> | </span><span class="anonymous"><a href="#" onclick="show('login')">Login</a></span> <span class="authenticated"><a href="#" onclick="logout()">Logout</a></span>
         </nav>
+        <span id="error" style="color:red"></span><br/>
+        <span id="message" style="color:green"></span><br/>
         <section id="posts">
             <h1>Blog</h1>
             <div id="postList"></div>
@@ -117,6 +180,14 @@
                 <input type="text" id="newTitle" placeholder="Post Title"></input><br/>
                 <textarea id="newBody" placeholder="Post Body"></textarea>
                 <button onclick="newPost(); show('post');">Save</button>
+            </form>
+        </section>
+        <section id="login">
+            <h2>Login</h2>
+            <form>
+                <input type="text" id="loginUsername" placeholder="Username"></input><br/>
+                <input type="password" id="loginPassword" placeholder="Password"></form>
+                <button onclick="login()">Login</button>
             </form>
         </section>
     </body>

@@ -60,7 +60,8 @@ func main() {
 				title character varying(64),
 				body character varying(1024),
 				created_time TIMESTAMPTZ,
-				author_id character varying(64)
+				author_id character varying(64),
+				deleted boolean
 			);
 			CREATE TABLE comment (
 				id SERIAL PRIMARY KEY,
@@ -76,7 +77,7 @@ func main() {
 		var id int
 		db.QueryRow(`INSERT INTO post (title, body, created_time, author_id) VALUES ($1, $2, $3, $4) RETURNING id`, "Clean Architecture", "<p>Post body html</p>", time.Now(), "Robert C. Martin").Scan(&id)
 		db.QueryRow(`INSERT INTO comment (body, created_time, post_id, commenter_id) VALUES ($1, $2, $3, $4)`, "Pulsara is awesome!", time.Now(), id, "commenter name")
-		db.QueryRow(`INSERT INTO post (title, body, created_time, author_id) VALUES ($1, $2, $3, $4)`, "Implementing Domain Driven Design", "<p>Post body html</p>", time.Now(), "Vaughn Vernon")
+		db.QueryRow(`INSERT INTO post (title, body, created_time, author_id, deleted) VALUES ($1, $2, $3, $4, $5)`, "Implementing Domain Driven Design", "<p>Post body html</p>", time.Now(), "Vaughn Vernon", true)
 	}
 
 	// api
@@ -92,7 +93,8 @@ func main() {
 			return
 		}
 
-		if pieces[0] == "post" {
+		switch pieces[0] {
+		case "post":
 			switch {
 			case len(pieces) == 1 || pieces[1] == "":
 				postsHandler(w, r, db)
@@ -101,6 +103,12 @@ func main() {
 			case (len(pieces) == 3 || pieces[3] == "") && pieces[2] == "comment":
 				commentHandler(w, r, pieces[1], db)
 			default:
+				w.WriteHeader(404)
+			}
+		case "authenticate":
+			if len(pieces) == 1 {
+				authenticateHandler(w, r)
+			} else {
 				w.WriteHeader(404)
 			}
 		}
@@ -113,9 +121,13 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byte, error)) {
+func writeJSONHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("content-type", "application/json")
 	w.Header().Add("access-control-allow-origin", "*")
+}
+
+func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byte, error)) {
+	writeJSONHeaders(w, r)
 
 	o, err := handler()
 	if err != nil {
@@ -127,6 +139,49 @@ func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byt
 
 func writeError(w http.ResponseWriter, err error) {
 	w.Write([]byte(err.Error()))
+}
+
+// Credentials user credentials
+type Credentials struct {
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
+func authenticateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	credentialData, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	r.Body.Close()
+
+	creds := Credentials{}
+	if err := json.Unmarshal(credentialData, &creds); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	resp, err := getToken(creds)
+	if err != nil {
+		w.WriteHeader(401)
+	}
+	w.Write(resp)
+}
+
+func getToken(creds Credentials) ([]byte, error) {
+	if creds.User == "bobross" && creds.Password == "painter" {
+		return []byte("notSoSecureToken!"), nil
+	}
+	return nil, fmt.Errorf("Invalid credentials")
+}
+
+func authenticate(r *http.Request) bool {
+	token := r.Header.Get("Authorization")
+	return "notSoSecureToken!" == token
 }
 
 // PostFull blog post with a post body
@@ -153,6 +208,11 @@ func postsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 		writeResponse(w, r, getPosts(db))
 		return
 	case "POST":
+		if !authenticate(r) {
+			w.WriteHeader(401)
+			return
+		}
+
 		postData, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			writeError(w, err)
@@ -197,7 +257,7 @@ func commentHandler(w http.ResponseWriter, r *http.Request, postID string, db *s
 
 func getPost(postID int, db *sql.DB) func() ([]byte, error) {
 	return func() ([]byte, error) {
-		row := db.QueryRow(`SELECT id, title, body, created_time, author_id FROM post WHERE id = $1`, postID)
+		row := db.QueryRow(`SELECT id, title, body, created_time, author_id FROM post WHERE id = $1 AND deleted IS NOT TRUE`, postID)
 		var parse struct {
 			createdTime *string
 		}
@@ -257,7 +317,7 @@ func scanComments(postID int, db *sql.DB) ([]Comment, error) {
 func getPosts(db *sql.DB) func() ([]byte, error) {
 	return func() ([]byte, error) {
 
-		rows, err := db.Query(`SELECT id, title, created_time, author_id FROM post ORDER BY created_time DESC`)
+		rows, err := db.Query(`SELECT id, title, created_time, author_id FROM post WHERE deleted IS NOT TRUE ORDER BY created_time DESC`)
 		if err != nil {
 			return nil, err
 		}

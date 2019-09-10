@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Basic Blog</title>
+        <meta charset="UTF-8">
+        <script>
+            const getPosts = () => {
+                fetch('http://localhost:8080/api/v1/post/').then(rawResponse => {
+                    return rawResponse.json()
+                }).then(responseJson => {
+                    let html = "<ul>"
+                    responseJson.forEach(post => {
+                        html += `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.id} - ${post.title}</a></li>`
+                    })
+                    html += "</ul>"
+                    const el = document.getElementById("postList")
+                    el.innerHTML = html
+                })
+            }
+
+            const getPost = postId => {
+                fetch(`http://localhost:8080/api/v1/post/${postId}`).then(rawResponse => {
+                    return rawResponse.json()
+                }).then(displayPost)
+            }
+
+            const newPost = () => {
+                const postData = JSON.stringify({
+                    title: document.getElementById("newTitle").value,
+                    body: document.getElementById("newBody").value,
+                })
+                console.log(postData)
+                fetch(`http://localhost:8080/api/v1/post/`, {
+                    method: 'POST',
+                    body: postData,
+                }).then(rawResponse => {
+                    return rawResponse.json()
+                }).then(displayPost)
+            }
+
+            const displayPost = post => {
+                let html = `<h3>${post.title}</h3>
+                            <div>By ${post.author} | posted ${post.createdTime}</div>
+                            <div>${post.body}</div>
+                            `
+                const el = document.getElementById("currentPost")
+                el.innerHTML = html
+            }
+
+            const sections = [
+                "posts",
+                "post",
+                "newPost",
+            ]
+
+            const show = showSection => {
+                sections.forEach(section => {
+                    document.getElementById(section).style.display = section === showSection ? "block" : "none"
+                })
+            }
+        </script>
+    </head>
+    <body onload="getPosts(); show('posts');">
+        <nav>
+            <a href="#" onclick="getPosts(); show('posts');">Posts</a> | <a href="#" onclick="show('newPost');">New Post</a> | <a href="#">Login</a> | <a href="#">Logout</a>
+        </nav>
+        <section id="posts">
+            <h1>Blog</h1>
+            <div id="postList"></div>
+        </section>
+        <section id="post">
+            <h2>Current Post</h2>
+            <div id="currentPost"></div>
+        </section>
+        <section id="newPost">
+            <h2>New Post</h2>
+            <form>
+                <input type="text" id="newTitle" placeholder="Post Title"></input><br/>
+                <textarea id="newBody" placeholder="Post Body"></textarea>
+                <button onclick="newPost(); show('post');">Save</button>
+            </form>
+        </section>
+    </body>
+</html>

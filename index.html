@@ -10,18 +10,22 @@
                 }).then(responseJson => {
                     let html = "<ul>"
                     responseJson.forEach(post => {
-                        html += `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.id} - ${post.title}</a></li>`
+                        html += `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.title} by ${post.author} posted on ${post.createdTime}</a></li>`
                     })
                     html += "</ul>"
                     const el = document.getElementById("postList")
                     el.innerHTML = html
+                }).catch(err => {
+                    console.error(err)
                 })
             }
 
             const getPost = postId => {
                 fetch(`http://localhost:8080/api/v1/post/${postId}`).then(rawResponse => {
                     return rawResponse.json()
-                }).then(displayPost)
+                }).then(displayPost).catch(err => {
+                    console.error(err)
+                })
             }
 
             const newPost = () => {
@@ -29,20 +33,49 @@
                     title: document.getElementById("newTitle").value,
                     body: document.getElementById("newBody").value,
                 })
-                console.log(postData)
                 fetch(`http://localhost:8080/api/v1/post/`, {
                     method: 'POST',
                     body: postData,
                 }).then(rawResponse => {
                     return rawResponse.json()
-                }).then(displayPost)
+                }).then(displayPost).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            const newComment = () => {
+                const postID = document.getElementById("currentPostId").value
+                const postData = JSON.stringify({
+                    commenter: document.getElementById("newCommentCommenter").value,
+                    body: document.getElementById("newCommentBody").value,
+                })
+                fetch(`http://localhost:8080/api/v1/post/${postID}/comment`, {
+                    method: 'POST',
+                    body: postData,
+                }).then(rawResponse => {
+                    return rawResponse.json()
+                }).then(() => {
+                    getPost(postID)
+                }).catch(err => {
+                    console.error(err)
+                })
             }
 
             const displayPost = post => {
                 let html = `<h3>${post.title}</h3>
+                            <input type="hidden" id="currentPostId" value="${post.id}" />
                             <div>By ${post.author} | posted ${post.createdTime}</div>
                             <div>${post.body}</div>
                             `
+                if (post.comments && post.comments.length > 0) {
+                    html += "<h4>Comments</h4><ol>"
+                    post.comments.forEach(comment => {
+                        html += `<li>Comment by ${comment.commenter} on ${comment.createdTime}
+                                <p>${comment.body}</p>
+                                </li>`
+                    })
+                    html += "</ol>"
+                }
                 const el = document.getElementById("currentPost")
                 el.innerHTML = html
             }
@@ -71,6 +104,12 @@
         <section id="post">
             <h2>Current Post</h2>
             <div id="currentPost"></div>
+            <h4>New Comment</h4>
+            <form>
+                <input type="text" id="newCommentCommenter" placeholder="Your Name"></input><br/>
+                <textarea id="newCommentBody" placeholder="Comment"></textarea>
+                <button onclick="newComment()">Comment</button>
+            </form>
         </section>
         <section id="newPost">
             <h2>New Post</h2>

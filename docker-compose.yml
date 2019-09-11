@@ -6,14 +6,14 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_PASSWORD=NOTso$ecretP455W0RD
+      - POSTGRES_PASSWORD=NotSoSecretP455W0RD
   app:
     build: .
     ports:
       - 8080:8080
     environment:
       - DB_HOST=db
-      - DB_PASSWORD=NOTso$ecretP455W0RD
+      - DB_PASSWORD=NotSoSecretP455W0RD
   adminer:
     image: adminer
     restart: always

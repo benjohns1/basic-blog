@@ -32,6 +32,7 @@ func main() {
 	if v, exists := os.LookupEnv("DB_PASSWORD"); exists {
 		dbconn.password = v
 	}
+
 	db, err := sql.Open("postgres", fmt.Sprintf("host=%v port=5432 user='postgres' password='%v' dbname=postgres application_name=blog sslmode=disable", dbconn.host, dbconn.password))
 	if err != nil {
 		fmt.Println(err)
@@ -191,6 +192,7 @@ type PostFull struct {
 	CreatedTime time.Time `json:"createdTime"`
 	Body        string    `json:"body"`
 	Author      string    `json:"author"`
+	Deleted     bool      `json:"deleted"`
 	Comments    []Comment `json:"comments"`
 }
 
@@ -200,12 +202,14 @@ type Post struct {
 	Title       string    `json:"title"`
 	CreatedTime time.Time `json:"createdTime"`
 	Author      string    `json:"author"`
+	Deleted     bool      `json:"deleted"`
 }
 
 func postsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	switch r.Method {
 	case "GET":
-		writeResponse(w, r, getPosts(db))
+		authenticated := authenticate(r)
+		writeResponse(w, r, getPosts(db, authenticated))
 		return
 	case "POST":
 		if !authenticate(r) {
@@ -232,7 +236,8 @@ func postHandler(w http.ResponseWriter, r *http.Request, postID string, db *sql.
 			writeError(w, err)
 			return
 		}
-		writeResponse(w, r, getPost(ID, db))
+		authenticated := authenticate(r)
+		writeResponse(w, r, getPost(ID, db, authenticated))
 		return
 	}
 }
@@ -255,19 +260,28 @@ func commentHandler(w http.ResponseWriter, r *http.Request, postID string, db *s
 	}
 }
 
-func getPost(postID int, db *sql.DB) func() ([]byte, error) {
+func getPost(postID int, db *sql.DB, authenticated bool) func() ([]byte, error) {
 	return func() ([]byte, error) {
-		row := db.QueryRow(`SELECT id, title, body, created_time, author_id FROM post WHERE id = $1 AND deleted IS NOT TRUE`, postID)
+		authCondition := ""
+		if !authenticated {
+			authCondition = " AND deleted IS NOT TRUE"
+		}
+		query := fmt.Sprintf(`SELECT id, title, body, created_time, author_id, deleted FROM post WHERE id = $1%v`, authCondition)
+		row := db.QueryRow(query, postID)
 		var parse struct {
 			createdTime *string
+			deleted     *bool
 		}
 		post := PostFull{}
-		err := row.Scan(&post.ID, &post.Title, &post.Body, &parse.createdTime, &post.Author)
+		err := row.Scan(&post.ID, &post.Title, &post.Body, &parse.createdTime, &post.Author, &parse.deleted)
 		if err != nil {
 			return nil, err
 		}
 		if t, err := time.Parse(time.RFC3339Nano, *parse.createdTime); err != nil {
 			post.CreatedTime = t
+		}
+		if parse.deleted != nil {
+			post.Deleted = *parse.deleted
 		}
 		if comments, err := scanComments(postID, db); err == nil {
 			post.Comments = comments
@@ -314,10 +328,15 @@ func scanComments(postID int, db *sql.DB) ([]Comment, error) {
 	return comments, nil
 }
 
-func getPosts(db *sql.DB) func() ([]byte, error) {
+func getPosts(db *sql.DB, authenticated bool) func() ([]byte, error) {
 	return func() ([]byte, error) {
 
-		rows, err := db.Query(`SELECT id, title, created_time, author_id FROM post WHERE deleted IS NOT TRUE ORDER BY created_time DESC`)
+		where := ""
+		if !authenticated {
+			where = " WHERE deleted IS NOT TRUE"
+		}
+		query := fmt.Sprintf(`SELECT id, title, created_time, author_id, deleted FROM post%v ORDER BY created_time DESC`, where)
+		rows, err := db.Query(query)
 		if err != nil {
 			return nil, err
 		}
@@ -327,15 +346,19 @@ func getPosts(db *sql.DB) func() ([]byte, error) {
 		for rows.Next() {
 			var parse struct {
 				createdTime *string
+				deleted     *bool
 			}
 
 			post := Post{}
-			err := rows.Scan(&post.ID, &post.Title, &parse.createdTime, &post.Author)
+			err := rows.Scan(&post.ID, &post.Title, &parse.createdTime, &post.Author, &parse.deleted)
 			if err != nil {
 				return nil, err
 			}
 			if t, err := time.Parse(time.RFC3339Nano, *parse.createdTime); err == nil {
 				post.CreatedTime = t
+			}
+			if parse.deleted != nil {
+				post.Deleted = *parse.deleted
 			}
 			posts = append(posts, post)
 		}

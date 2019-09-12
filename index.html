@@ -4,6 +4,9 @@
         <title>Basic Blog</title>
         <meta charset="UTF-8">
         <script>
+            
+            /* Actions and API calls */
+
             const getPosts = () => {
                 fetch('http://localhost:8080/api/v1/post/', {
                     headers: {
@@ -11,27 +14,9 @@
                     }
                 }).then(rawResponse => {
                     return rawResponse.json()
-                }).then(responseJson => {
-                    let posts = []
-                    let deleted = []
-                    responseJson.forEach(post => {
-                        if (!post.deleted) {
-                            posts.push(formatPostListItem(post))
-                        } else {
-                            deleted.push(formatPostListItem(post))
-                        }
-                    })
-                    document.getElementById("postList").innerHTML = `<ol>${posts.join("")}</ol>`
-
-                    deletedHtml = deleted.length > 0 ? `<h4>Deleted Posts</h4><ol>${deleted.join("")}</ol>` : ""
-                    document.getElementById("deletedPosts").innerHTML = deletedHtml
-                }).catch(err => {
+                }).then(displayPosts).catch(err => {
                     console.error(err)
                 })
-            }
-
-            const formatPostListItem = post => {
-                return `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.title} by ${post.author} posted on ${post.createdTime}</a></li>`
             }
 
             const getPost = postId => {
@@ -69,13 +54,12 @@
                 })
             }
 
-            const newComment = () => {
-                const postID = document.getElementById("currentPostId").value
+            const newComment = postId => {
                 const postData = JSON.stringify({
                     commenter: document.getElementById("newCommentCommenter").value,
                     body: document.getElementById("newCommentBody").value,
                 })
-                fetch(`http://localhost:8080/api/v1/post/${postID}/comment`, {
+                fetch(`http://localhost:8080/api/v1/post/${postId}/comment`, {
                     method: 'POST',
                     headers: {
                         "Authorization": window.sessionStorage.getItem("token"),
@@ -84,18 +68,98 @@
                 }).then(rawResponse => {
                     return rawResponse.json()
                 }).then(() => {
-                    getPost(postID)
+                    getPost(postId)
                 }).catch(err => {
                     console.error(err)
                 })
             }
 
+            const deletePost = postId => {
+                fetch(`http://localhost:8080/api/v1/post/${postId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        "Authorization": window.sessionStorage.getItem("token"),
+                    },
+                }).then(response => {
+                    if (response.status === 200 || response.status === 204) {
+                        flashMessage("Post deleted")
+                        getPosts()
+                        show("posts")
+                    } else {
+                        flashMessage("Error deleting post", "error")
+                    }
+                }).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            const restorePost = postId => {
+                fetch(`http://localhost:8080/api/v1/post/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        "Authorization": window.sessionStorage.getItem("token"),
+                    },
+                    body: JSON.stringify({
+                        deleted: false
+                    })
+                }).then(response => {
+                    if (response.status === 200 || response.status === 204) {
+                        flashMessage("Post restored")
+                        getPosts()
+                        show("posts")
+                    } else {
+                        flashMessage("Error restoring post", "error")
+                    }
+                }).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            /* Blog post view helpers */
+
+            const displayPosts = postData => {
+                let posts = []
+                let deleted = []
+                postData.forEach(post => {
+                    if (!post.deleted) {
+                        posts.push(formatPostListItem(post))
+                    } else {
+                        deleted.push(formatPostListItem(post))
+                    }
+                })
+                document.getElementById("postList").innerHTML = `<ol>${posts.join("")}</ol>`
+
+                deletedHtml = deleted.length > 0 ? `<h4>Deleted Posts</h4><ol>${deleted.join("")}</ol>` : ""
+                document.getElementById("deletedPosts").innerHTML = deletedHtml
+            }
+
+            const formatPostListItem = post => {
+                return `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.title} by ${post.author} posted on ${post.createdTime}</a></li>`
+            }
+
             const displayPost = post => {
+                // Display post and data
                 let html = `<h3>${post.title}</h3>
-                            <input type="hidden" id="currentPostId" value="${post.id}" />
                             <div>By ${post.author} | posted ${post.createdTime}</div>
-                            <div>${post.body}</div>
-                            `
+                            <div>${post.body}</div>`
+
+                // Display author edit controls
+                if (isLoggedIn()) {
+                    deleteAction = post.deleted ? `<button onclick="restorePost(${post.id});">Restore</button>` : `<button onclick="deletePost(${post.id});">Delete</button>`
+                    html += `${deleteAction}<button onclick="alert('not implemented')">Edit</button>`
+                }
+                    
+                // Display new comment form
+                if (!post.deleted) {
+                    html += `<h4>New Comment</h4>
+                    <form>
+                        <input type="text" id="newCommentCommenter" placeholder="Your Name"></input><br/>
+                        <textarea id="newCommentBody" placeholder="Comment"></textarea>
+                        <button onclick="newComment(${post.id})">Comment</button>
+                    </form>`
+                }
+
+                // Display list of comments
                 if (post.comments && post.comments.length > 0) {
                     comments = []
                     post.comments.forEach(comment => {
@@ -105,17 +169,11 @@
                     })
                     html += `<h4>Comments</h4><ol>${comments.join("")}</ol>`
                 }
-                if (!post.deleted) {
-                    html += `<h4>New Comment</h4>
-                    <form>
-                        <input type="text" id="newCommentCommenter" placeholder="Your Name"></input><br/>
-                        <textarea id="newCommentBody" placeholder="Comment"></textarea>
-                        <button onclick="newComment()">Comment</button>
-                    </form>`
-                }
                 const el = document.getElementById("currentPost")
                 el.innerHTML = html
             }
+
+            /* Login/logout */
 
             const login = () => {
                 const postData = JSON.stringify({
@@ -135,6 +193,7 @@
                     if (authenticationData) {
                         window.sessionStorage.setItem("token", authenticationData)
                         flashMessage("Logged in!")
+                        getPosts()
                         show("posts")
                     }
                 }).catch(err => {
@@ -142,17 +201,25 @@
                 })
             }
 
+            const logout = () => {
+                window.sessionStorage.removeItem("token")
+                flashMessage("Logged out")
+                show("posts")
+            }
+
+            const isLoggedIn = () => {
+                return !!window.sessionStorage.getItem("token")
+            }
+
+            /* Flash messages */
+
             const flashMessage = (msg, id = "message") => {
                 const el = document.getElementById(id)
                 el.innerHTML = msg
                 setTimeout(() => el.innerHTML = "", 5000)
             }
 
-            const logout = () => {
-                window.sessionStorage.removeItem("token")
-                flashMessage("Logged out")
-                show("posts")
-            }
+            /* Section/route visibility and DOM element rendering logic */
 
             const sections = [
                 "posts",
@@ -173,12 +240,11 @@
                     document.getElementById(section).style.display = section === currentSection ? "block" : "none"
                 })
 
-                const loggedin = !!window.sessionStorage.getItem("token")
                 Array.from(document.getElementsByClassName("anonymous")).forEach(el => {
-                    el.style.display = loggedin ? "none" : "inline"
+                    el.style.display = isLoggedIn() ? "none" : "inline"
                 })
                 Array.from(document.getElementsByClassName("authenticated")).forEach(el => {
-                    el.style.display = loggedin ? "inline" : "none"
+                    el.style.display = isLoggedIn() ? "inline" : "none"
                 })
             }
         </script>

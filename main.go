@@ -18,6 +18,7 @@ import (
 type DBConn struct {
 	host     string
 	password string
+	port     int
 }
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 	dbconn := DBConn{
 		host:     "localhost",
 		password: "asdf1234",
+		port:     5432,
 	}
 	if v, exists := os.LookupEnv("DB_HOST"); exists {
 		dbconn.host = v
@@ -32,8 +34,14 @@ func main() {
 	if v, exists := os.LookupEnv("DB_PASSWORD"); exists {
 		dbconn.password = v
 	}
+	if v, exists := os.LookupEnv("DB_PORT"); exists {
+		port, err := strconv.Atoi(v)
+		if err == nil {
+			dbconn.port = port
+		}
+	}
 
-	db, err := sql.Open("postgres", fmt.Sprintf("host=%v port=5432 user='postgres' password='%v' dbname=postgres application_name=blog sslmode=disable", dbconn.host, dbconn.password))
+	db, err := sql.Open("postgres", fmt.Sprintf("host=%v port=%v user='postgres' password='%v' dbname=postgres application_name=blog sslmode=disable", dbconn.host, dbconn.port, dbconn.password))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -43,8 +51,9 @@ func main() {
 	var isSetup bool
 	err = db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'post');`).Scan(&isSetup)
 	if err != nil {
-		for attempts := 0; attempts < 100; attempts++ {
-			fmt.Println(err)
+		maxAttempts := 100
+		for attempts := 1; attempts <= maxAttempts; attempts++ {
+			fmt.Printf("Attempt %v/%v: %v", attempts, maxAttempts, err)
 			time.Sleep(time.Duration(5 * time.Second))
 			err = db.Ping()
 			if err == nil {
@@ -110,8 +119,12 @@ func main() {
 			if len(pieces) == 1 {
 				authenticateHandler(w, r)
 			} else {
-				w.WriteHeader(404)
+				writeError(w, fmt.Errorf("Not authenticated"), http.StatusUnauthorized)
+				return
 			}
+		default:
+			writeError(w, fmt.Errorf("Unknown resource"), http.StatusForbidden)
+			return
 		}
 	})
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -132,14 +145,29 @@ func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byt
 
 	o, err := handler()
 	if err != nil {
-		writeError(w, err)
+		writeError(w, err, http.StatusInternalServerError)
 		return
 	}
-	w.Write(o)
+	if len(o) > 0 {
+		w.Write(o)
+		return
+	}
+	w.WriteHeader(204)
+	return
 }
 
-func writeError(w http.ResponseWriter, err error) {
-	w.Write([]byte(err.Error()))
+// ErrorResponse JSON wrapper for error string
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+func writeError(w http.ResponseWriter, err error, errorCode int) {
+	w.WriteHeader(errorCode)
+	errorBytes, err := json.Marshal(ErrorResponse{err.Error()})
+	if err != nil {
+		w.Write([]byte("Internal error"))
+	}
+	w.Write(errorBytes)
 }
 
 // Credentials user credentials
@@ -155,14 +183,14 @@ func authenticateHandler(w http.ResponseWriter, r *http.Request) {
 
 	credentialData, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		writeError(w, err)
+		writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 	r.Body.Close()
 
 	creds := Credentials{}
 	if err := json.Unmarshal(credentialData, &creds); err != nil {
-		writeError(w, err)
+		writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -196,6 +224,15 @@ type PostFull struct {
 	Comments    []Comment `json:"comments"`
 }
 
+// PostUpdate blog post with updatable fields
+type PostUpdate struct {
+	Title       *string    `json:"title"`
+	CreatedTime *time.Time `json:"createdTime"`
+	Body        *string    `json:"body"`
+	Author      *string    `json:"author"`
+	Deleted     *bool      `json:"deleted"`
+}
+
 // Post blog post without the post body
 type Post struct {
 	ID          int       `json:"id"`
@@ -210,35 +247,55 @@ func postsHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	case "GET":
 		authenticated := authenticate(r)
 		writeResponse(w, r, getPosts(db, authenticated))
-		return
 	case "POST":
 		if !authenticate(r) {
-			w.WriteHeader(401)
+			writeError(w, fmt.Errorf("Not authenticated"), http.StatusUnauthorized)
 			return
 		}
 
 		postData, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			writeError(w, err)
+			writeError(w, err, http.StatusInternalServerError)
 			return
 		}
 		r.Body.Close()
 		writeResponse(w, r, newPost(postData, db))
-		return
+	default:
+		writeError(w, fmt.Errorf("Invalid method"), http.StatusBadRequest)
 	}
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request, postID string, db *sql.DB) {
+	ID, err := strconv.Atoi(postID)
+	if err != nil {
+		writeError(w, err, http.StatusInternalServerError)
+		return
+	}
+	authenticated := authenticate(r)
+
 	switch r.Method {
 	case "GET":
-		ID, err := strconv.Atoi(postID)
-		if err != nil {
-			writeError(w, err)
+		writeResponse(w, r, getPost(ID, db, authenticated))
+	case "DELETE":
+		if !authenticate(r) {
+			writeError(w, fmt.Errorf("Not authenticated"), http.StatusUnauthorized)
 			return
 		}
-		authenticated := authenticate(r)
-		writeResponse(w, r, getPost(ID, db, authenticated))
-		return
+		writeResponse(w, r, deletePost(ID, db))
+	case "POST":
+		if !authenticate(r) {
+			writeError(w, fmt.Errorf("Not authenticated"), http.StatusUnauthorized)
+			return
+		}
+		postData, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			writeError(w, err, http.StatusInternalServerError)
+			return
+		}
+		r.Body.Close()
+		writeResponse(w, r, updatePost(ID, postData, db))
+	default:
+		writeError(w, fmt.Errorf("Invalid method"), http.StatusBadRequest)
 	}
 }
 
@@ -247,16 +304,77 @@ func commentHandler(w http.ResponseWriter, r *http.Request, postID string, db *s
 	case "POST":
 		ID, err := strconv.Atoi(postID)
 		if err != nil {
-			writeError(w, err)
+			writeError(w, err, http.StatusInternalServerError)
 			return
 		}
 		commentData, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			writeError(w, err)
+			writeError(w, err, http.StatusInternalServerError)
 			return
 		}
 		r.Body.Close()
 		writeResponse(w, r, newComment(ID, commentData, db))
+	default:
+		writeError(w, fmt.Errorf("Invalid method"), http.StatusBadRequest)
+	}
+}
+
+func addFieldToUpdate(fields *[]string, values *[]interface{}, name string, value interface{}) {
+	*fields = append(*fields, fmt.Sprintf("%s = $%d", name, len(*values)+1))
+	*values = append(*values, value)
+}
+
+func updatePost(ID int, postData []byte, db *sql.DB) func() ([]byte, error) {
+	return func() ([]byte, error) {
+		post := PostUpdate{}
+		if err := json.Unmarshal(postData, &post); err != nil {
+			return nil, err
+		}
+
+		// Only update fields that were sent (e.g. not zero-value after unmarshaling)
+		var fields []string
+		var values []interface{}
+		values = append(values, ID)
+		if post.Title != nil {
+			addFieldToUpdate(&fields, &values, "title", *post.Title)
+		}
+		if post.CreatedTime != nil {
+			addFieldToUpdate(&fields, &values, "created_time", *post.CreatedTime)
+		}
+		if post.Body != nil {
+			addFieldToUpdate(&fields, &values, "body", *post.Body)
+		}
+		if post.Author != nil {
+			addFieldToUpdate(&fields, &values, "author_id", *post.Author)
+		}
+		if post.Deleted != nil {
+			addFieldToUpdate(&fields, &values, "deleted", *post.Deleted)
+		}
+
+		query := fmt.Sprintf("UPDATE post SET %v WHERE id = $1", strings.Join(fields, ", "))
+		result, err := db.Exec(query, values...)
+		if err != nil {
+			return nil, err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if rowsAffected != 1 || err != nil {
+			return nil, fmt.Errorf("Unable to update post %v", ID)
+		}
+		return []byte{}, nil
+	}
+}
+
+func deletePost(postID int, db *sql.DB) func() ([]byte, error) {
+	return func() ([]byte, error) {
+		result, err := db.Exec("UPDATE post SET deleted = TRUE WHERE id = $1", postID)
+		if err != nil {
+			return nil, err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if rowsAffected != 1 || err != nil {
+			return nil, fmt.Errorf("Unable to delete post %v", postID)
+		}
+		return []byte{}, nil
 	}
 }
 
@@ -277,7 +395,7 @@ func getPost(postID int, db *sql.DB, authenticated bool) func() ([]byte, error) 
 		if err != nil {
 			return nil, err
 		}
-		if t, err := time.Parse(time.RFC3339Nano, *parse.createdTime); err != nil {
+		if t, err := time.Parse(time.RFC3339Nano, *parse.createdTime); err == nil {
 			post.CreatedTime = t
 		}
 		if parse.deleted != nil {

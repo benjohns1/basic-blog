@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		maxAttempts := 100
 		for attempts := 1; attempts <= maxAttempts; attempts++ {
-			fmt.Printf("Attempt %v/%v: %v", attempts, maxAttempts, err)
+			fmt.Printf("Attempt %v/%v: %v\n", attempts, maxAttempts, err)
 			time.Sleep(time.Duration(5 * time.Second))
 			err = db.Ping()
 			if err == nil {
@@ -135,20 +135,17 @@ func main() {
 	http.ListenAndServe(":8080", nil)
 }
 
-func writeJSONHeaders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("content-type", "application/json")
-	w.Header().Add("access-control-allow-origin", "*")
-}
-
 func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byte, error)) {
-	writeJSONHeaders(w, r)
+	w.Header().Add("access-control-allow-origin", "*")
 
 	o, err := handler()
 	if err != nil {
+		w.Header().Add("content-type", "application/json")
 		writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 	if len(o) > 0 {
+		w.Header().Add("content-type", "application/json")
 		w.Write(o)
 		return
 	}

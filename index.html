@@ -24,8 +24,8 @@
                     headers: {
                         "Authorization": window.sessionStorage.getItem("token"),
                     }
-                }).then(rawResponse => {
-                    return rawResponse.json()
+                }).then(response => {
+                    return response.json()
                 }).then(displayPost).catch(err => {
                     console.error(err)
                 })
@@ -42,14 +42,26 @@
                         "Authorization": window.sessionStorage.getItem("token"),
                     },
                     body: postData,
-                }).then(resp => {
-                    if (resp.status === 401) {
+                }).then(response => {
+                    if (response.status === 401) {
                         flashMessage("Please log in to post", "error")
                         show("login")
                         return
                     }
-                    return resp.json()
+                    return response.json()
                 }).then(displayPost).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            const editPost = postId => {
+                fetch(`http://localhost:8080/api/v1/post/${postId}`, {
+                    headers: {
+                        "Authorization": window.sessionStorage.getItem("token"),
+                    }
+                }).then(response => {
+                    return response.json()
+                }).then(displayEditPost).catch(err => {
                     console.error(err)
                 })
             }
@@ -88,6 +100,35 @@
                     } else {
                         flashMessage("Error deleting post", "error")
                     }
+                }).catch(err => {
+                    console.error(err)
+                })
+            }
+
+            const updatePost = postId => {
+                const postData = JSON.stringify({
+                    title: document.getElementById("editTitle").value,
+                    body: document.getElementById("editBody").value,
+                })
+                fetch(`http://localhost:8080/api/v1/post/${postId}`, {
+                    method: 'POST',
+                    headers: {
+                        "Authorization": window.sessionStorage.getItem("token"),
+                    },
+                    body: postData,
+                }).then(response => {
+                    switch (response.status) {
+                        case 401:
+                            flashMessage("Please log in to edit posts", "error")
+                            show("login")
+                            return
+                        case 200:
+                        case 204:
+                            getPost(postId)
+                            show("post")
+                            return
+                    }
+                    flashMessage(`Unknown ${response.status} error updating post`, "error")
                 }).catch(err => {
                     console.error(err)
                 })
@@ -137,6 +178,32 @@
                 return `<li><a href="#" onclick="getPost(${post.id}); show('post');">${post.title} by ${post.author} posted on ${post.createdTime}</a></li>`
             }
 
+            const displayEditPost = post => {
+                if (!isLoggedIn()) {
+                    getPosts()
+                    show("posts")
+                    return
+                }
+
+                let html = `<h3><input type="text" id="editTitle" placeholder="Post Title" value="${post.title}" /></h3>
+                            <div>By ${post.author} | posted ${post.createdTime}</div>
+                            <div><textarea id="editBody" placeholder="Post Body">${post.body}</textarea></div>
+                            <button onclick="updatePost(${post.id})">Save</button>`
+
+                // Display list of comments
+                if (post.comments && post.comments.length > 0) {
+                    comments = []
+                    post.comments.forEach(comment => {
+                        comments.push(`<li>Comment by ${comment.commenter} on ${comment.createdTime}
+                                <p>${comment.body}</p>
+                                </li>`)
+                    })
+                    html += `<h4>Comments</h4><ol>${comments.join("")}</ol>`
+                }
+                const el = document.getElementById("currentPost")
+                el.innerHTML = html
+            }
+
             const displayPost = post => {
                 // Display post and data
                 let html = `<h3>${post.title}</h3>
@@ -146,7 +213,7 @@
                 // Display author edit controls
                 if (isLoggedIn()) {
                     deleteAction = post.deleted ? `<button onclick="restorePost(${post.id});">Restore</button>` : `<button onclick="deletePost(${post.id});">Delete</button>`
-                    html += `${deleteAction}<button onclick="alert('not implemented')">Edit</button>`
+                    html += `${deleteAction}<button onclick="editPost(${post.id})">Edit</button>`
                 }
                     
                 // Display new comment form

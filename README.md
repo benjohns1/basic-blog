@@ -1,5 +1,4 @@
 # Basic Blog - Prototype Version 1
-# Devlog 2019-09-11: Prototype Version 1
 A bare-bones blog implementation with a Go REST API and no-nonsense plain JavaScript SPA front-end, with dummy authentication
 ## Run It
 1. Install & run Docker
@@ -32,21 +31,29 @@ Docker and Compose
 ## Development
 1. Start the DB and Adminer: `docker-compose --file=docker-compose.dev.yml up`
 2. Rebuild and start the server after changes: `go build -o blog && ./blog` (or `go build -o blog.exe && blog` on Windows)
+3. App URL: `localhost:8080`
+4. Adminer URL: `localhost:8081`
 
-# Devlog 2019-09-12 (hour 8):
+# Devlog
+## 2019-09-12 (hour 8):
 Feature complete, finished edit post functionality and updated readme for the initial prototype!
 
-# Devlog 2019-09-11 (hours 5-7):
+## 2019-09-11 (hours 5-7):
 Almost feature complete except for the edit post functionality in the UI
 
-# Devlog 2019-09-10 (hours 3-5): 
+## 2019-09-10 (hours 3-5): 
 Added dummy authentication and authenticated vs anonymous logic in the UI
 
-# Devlog 2019-09-09: Design and Initial Features (hour 1-3)
+## 2019-09-09: Design and Initial Features (hour 1-3)
 Fleshed-out unauthenticated flows, UI, setup DB, and docker
-## DB Design
+### REST API Endpoints
+ - /api/v1/authenticate (POST)
+ - /api/v1/post (GET, POST)
+ - /api/v1/post/{id} (GET, POST, DELETE)
+ - /api/v1/post/{id}/comment (POST)
+### DB Design
 This is a target design for the final microservice bounded contexts, initially I'll implement the API within a single context, hard-code a dummy user, and only use the `post` and `comment` tables
-### Authentication Context
+#### Authentication Context
 user
  - id
  - username
@@ -55,7 +62,7 @@ anon_user
  - id
  - ip
  - useragent
-### Blog Post Context
+#### Blog Post Context
 post
  - id
  - title
@@ -66,7 +73,7 @@ author
  - id
  - user_id
  - displayname
-### Comment Context
+#### Comment Context
 comment
  - id
  - body
@@ -77,26 +84,20 @@ Commenter
  - user_id (nullable)
  - displayname
 
-## REST API Endpoints
- - /api/v1/authenticate (POST)
- - /api/v1/post (GET, POST)
- - /api/v1/post/{id} (GET, POST, DELETE)
- - /api/v1/post/{id}/comment (POST)
-
-# Devlog 2019-09-08: Initial Requirements and Approach (hours 0-1)
-## Project Approach
+## 2019-09-08: Initial Requirements and Approach (hours 0-1)
+### Project Approach
 I think it would be fun to try a simple project like this in stages since I believe I can get all the base requirements done in the time allotted with hopefully some to spare. I've been a practicing consultant for the past 8 years, so my estimates should only be off by a factor of 10,000% or thereabouts. (I can be an optimist and a pragmatist at the same time, right?) So, the goal is to get all requirements done with the bare minimum of effort and engineering, then refactor the architecture, and add a nice UI if there's time.
-## Design Stages
-### 1: Prototype
+### Design Stages
+#### 1: Prototype
 Bare-bones fulfillment of requirements
  - Plain JavaScript front-end SPA
  - Simple Go REST API
-### 2: UI and Refactor
+#### 2: UI and Refactor
 Style the UI and refactor into a cleaner architecture
  - Angular
  - Angular Material
  - Refactor API
-### 3: New Tech
+#### 3: New Tech
 Unlikely to get here in the time limit, but it's good to set high goals!
 Refactor to use the following architectural patterns
  - Split API handlers into smaller bounded contexts:
@@ -106,11 +107,11 @@ Refactor to use the following architectural patterns
  - gRPC for communication protocol
  - Event sourcing
  - CQRS
-## Constraints
+### Constraints
  - 10 hours max
  - Separate back-end API and front-end SPA
  - Relational DB
-## Story Reference
+### Story Reference
 1. As an authenticated user, I can post a new blog post. The post has a title, created date,
 and body.
 a. NOTE: do not worry about Rich text or WSIWYG editors for the post body. Plain

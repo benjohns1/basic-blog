@@ -1,0 +1,51 @@
+<style>
+  .spacer {
+    flex: 1 1 auto; /* fill remaining toolbar space */
+  }
+  .container {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 {
+    padding-left: 14px;
+  }
+</style>
+
+<mat-sidenav-container class="mat-typography container">
+  <mat-sidenav #sidenav mode="side" class="sidenav-menu">
+    <button mat-icon-button (click)="sidenav.toggle()" aria-label="close menu">
+      <mat-icon>close</mat-icon>
+    </button>
+    <mat-nav-list>
+      <a mat-list-item routerLink="/posts" routerLinkActive="active">Posts</a>
+      <a *ngIf="isLoggedIn()" mat-list-item routerLink="/post/new" routerLinkActive="active">New Post</a>
+      <a *ngIf="isLoggedIn()" mat-list-item routerLink="/posts/deleted" routerLinkActive="active">Deleted Posts</a>
+    </mat-nav-list>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <mat-toolbar color="primary">
+      <button mat-icon-button (click)="sidenav.toggle()" aria-label="open menu">
+        <mat-icon>menu</mat-icon>
+      </button>
+      <h1>{{title}}</h1>
+      <span class="spacer"></span>
+      <a mat-button *ngIf="!isLoggedIn()" aria-label="user login" routerLink="/login">
+        Login
+      </a>
+      <button mat-button *ngIf="isLoggedIn()" aria-label="user logout" (click)="logout()">
+        <mat-icon>person</mat-icon>
+        Logout
+      </button>
+    </mat-toolbar>
+    <mat-card class="content">
+      <router-outlet></router-outlet>
+    </mat-card>
+  </mat-sidenav-content>
+</mat-sidenav-container>

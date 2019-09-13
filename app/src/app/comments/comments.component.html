@@ -1,0 +1,17 @@
+<h2>Comments</h2>
+<form *ngIf="!post.deleted" #commentForm="ngForm" class="comment-form" (ngSubmit)="submitComment(commentForm)">
+  <h3>New Comment</h3>
+  <mat-form-field class="field">
+    <input matInput type="text" placeholder="Your name" required [(ngModel)]="comment.commenter" name="commenter"/>
+  </mat-form-field>
+  <mat-form-field class="field">
+    <textarea matInput cdkTextareaAutosize placeholder="Comment" cdkAutosizeMinRows="1" cdkAutosizeMaxRows="5" required [(ngModel)]="comment.body" name="body"></textarea>
+  </mat-form-field>
+  <button mat-raised-button type="submit" color="secondary" [disabled]="!commentForm.form.valid">Submit comment</button>
+</form>
+<mat-list>
+  <mat-list-item *ngFor="let comment of post.comments">
+    <h3 matLine>Comment by {{comment.commenter}} on {{comment.createdTime | date:'short'}}</h3>
+    <p matLine>{{comment.body}}</p>
+  </mat-list-item>
+</mat-list>

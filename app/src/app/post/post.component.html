@@ -1,0 +1,31 @@
+<div *ngIf="!editing">
+  <mat-card-title>{{post.title}}</mat-card-title>
+  <mat-card-subtitle>By {{post.author}} | Posted on {{post.createdTime | date:'short'}}</mat-card-subtitle>
+  <mat-card-content [innerHTML]="post.body"></mat-card-content>
+  <mat-card-actions>
+    <div *ngIf="isLoggedIn()">
+      <button mat-raised-button color="primary" (click)="edit()">Edit</button>
+      <button *ngIf="!post.deleted" mat-button color="warn" (click)="delete()">Delete</button>
+      <button *ngIf="post.deleted" mat-raised-button color="accent" (click)="restore()">Restore</button>
+    </div>
+  </mat-card-actions>
+  <mat-card-footer class="comments">
+    <app-comments [post]="post"></app-comments>
+  </mat-card-footer>
+</div>
+<form *ngIf="editing" #editForm="ngForm" (ngSubmit)="save()">
+  <mat-card-title>
+    <mat-form-field class="field">
+      <input matInput type="text" placeholder="Post Title" [(ngModel)]="post.title" name="title"/>
+    </mat-form-field>
+  </mat-card-title>
+  <mat-card-content>
+    <mat-form-field class="field">
+      <textarea matInput cdkTextareaAutosize placeholder="Post Body" cdkAutosizeMinRows="5" [(ngModel)]="post.body" name="body"></textarea>
+    </mat-form-field>
+    <span *ngIf="!new">Author: {{post.author}}<br/>Posted on: {{post.createdTime | date:'short'}}</span>
+  </mat-card-content>
+  <mat-card-actions>
+      <button type="submit" mat-raised-button color="primary" [disabled]="!editForm.form.valid">{{new ? "Publish" : "Save"}}</button>
+  </mat-card-actions>
+</form>

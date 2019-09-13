@@ -1,42 +1,45 @@
-# Basic Blog - Prototype Version 1
-A bare-bones blog implementation with a Go REST API and no-nonsense plain JavaScript SPA front-end, with dummy authentication
+# Basic Blog - Prototype Version 2
+Building off of the feature-complete Prototype 1, this version 2 uses Material Angular on the front-end.
 ## Run It
 1. Install & run Docker
 2. `git clone https://github.com/benjohns1/basic-blog`
 3. `cd basic-blog`
-4. `git checkout prototype-1`
 5. Start the app with `docker-compose up`
 6. Go to `localhost:8080`
 7. Log in with dummy credentials
    - username: `bobross`
    - password: `painter`
 
-## Overview
-### Front-End
-After building various UIs recently in React, Angular, and Svelte/Sapper, I decided to tackle this simple UI in good ol' plain JavaScript. 'Gasp', right? At least it's ES6 (it won't run in older browsers) and it was a good reminder for me why JavaScript frameworks exist. Adding more features towards the end required more architectural changes and clunkier code that most frameworks handle very elegantly. And XSS? What's that? But it was very nice not to have to fight with WebPack, TypeScript, SSR, and the million other tools we now use to make life on the front-end 'easier'.
-#### `basic-blog/index.html`
-A single page with a single script tag that handles API fetch requests and DOM manipulation. Who needs MVC or component architecture when you can shove it all in one file?
-### Back-End
-For simplicity, I avoided using DDD or layered/clean architecture on the back-end, and built the blog functionality into a single main.go file. No matter how hard I tried, I couldn't avoid using dependency injection for the DB connection reference throughout the API handlers ;-)
-#### `basic-blog/main.go`
- - API: A simple JSON REST API to handle CRUD for blog posts and comments, and a dummy authentication endpoint that returns an "auth token" for subsequent API requests (and I use the term "auth token" very loosely ;-P)
- - Persistence: PostgreSQL database with hard-coded credentials stored in plaintext the repo (that's best practice, right?!?) "I was on a short deadline with this project and just needed to get it done." Famous last words before a massive data breach? Probably.
- - App Server: Statically serving `index.html` in a theater near you (actually only on `localhost:8080`)
-
 ### Infrastructure
 Docker and Compose
- - DB: Official postgres image (with adminer image for DB dev/inspection)
- - Server: golang:1.13.0 image as builder image targeting a scratch image that hosts the application binary
+ - Web App: node alpine image as builder -> targets a nginx image that hosts the Angular web application
+ - API Server: golang image as builder -> targets a scratch image that hosts the Go API binary
+ - DB: postgres image (with adminer image for DB dev/inspection)
 
 ## Development
+Prereqs: Ensure you have the lastest Angular CLI and Docker installed.
 1. Start the DB and Adminer: `docker-compose --file=docker-compose.dev.yml up`
-2. Rebuild and start the server after changes: `go build -o blog && ./blog` (or `go build -o blog.exe && blog` on Windows)
-3. App URL: `localhost:8080`
-4. Adminer URL: `localhost:8081`
+2. In `services/api/cmd`, rebuild and start the API server after any changes: `go build -o blog && ./blog` (or `go build -o blog.exe && blog` on Windows)
+3. In `app`, start the client dev server and make changes: `ng serve`
+4. API URL: `localhost:3000`
+5. App URL: `localhost:8080`
+6. Adminer URL: `localhost:8081`
 
 # Devlog
+## 2019-09-12 (hours 8-10):
+Rebuilt front-end in Material Angular for a much cleaner UX
+What I was hoping to do but ran out of time:
+ - Friendly user error and success messages (currenty only logged to console)
+ - UI cleanup (show active route, favicon, custom color scheme with some more icons for flavor)
+ - Real unit tests and some e2e tests
+ - Refactor the Go API to use separate microservices for authentication, blog posts, and blog comments
+ - Use protobufs for transport
+ - Use event-driven architecture and event sourcing for back-end
+ - Implement authentication for real users
+
 ## 2019-09-12 (hour 8):
-Feature complete, finished edit post functionality and updated readme for the initial prototype!
+Feature complete with raw UI, finished edit post functionality and updated readme for the initial prototype!
+`git checkout prototype-1` to view this working version (WARNING: it has a face only a mother could love)
 
 ## 2019-09-11 (hours 5-7):
 Almost feature complete except for the edit post functionality in the UI

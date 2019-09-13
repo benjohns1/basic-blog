@@ -5,10 +5,14 @@ services:
     restart: always
     environment:
       - POSTGRES_PASSWORD=NotSoSecretP455W0RD
-  app:
-    build: .
+  webapp:
+    build: ./app
     ports:
       - 8080:8080
+  api:
+    build: ./services/api
+    ports:
+      - 3000:3000
     environment:
       - DB_HOST=db
       - DB_PORT=5432

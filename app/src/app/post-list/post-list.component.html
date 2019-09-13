@@ -1,0 +1,7 @@
+<h1>Posts</h1>
+<mat-nav-list>
+  <a mat-list-item routerLink="/post/{{post.id}}" *ngFor="let post of posts">
+    <h2 matLine>{{post.title}}</h2>
+    <p matLine>{{post.author}} on {{post.createdTime | date:'shortDate'}}</p>
+  </a>
+</mat-nav-list>

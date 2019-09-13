@@ -48,7 +48,7 @@ Prereqs: Ensure you have the lastest Angular CLI and Docker installed.
 
 # Devlog
 ## 2019-09-12 (hours 8-10):
-Rebuilt front-end in Material Angular for a much cleaner UX
+Rebuilt front-end in Material Angular for a much cleaner UX  
 What I was hoping to do but ran out of time:
  - Friendly user error and success messages (currenty only logged to console)
  - UI cleanup (show active route, favicon, custom color scheme with some more icons for flavor)

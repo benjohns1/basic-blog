@@ -82,6 +82,7 @@ user
  - id
  - username
  - passwordhash
+
 anon_user
  - id
  - ip
@@ -93,6 +94,7 @@ post
  - created_time
  - body
  - author_id
+  
 author
  - id
  - user_id
@@ -103,7 +105,8 @@ comment
  - body
  - post_id
  - commenter_id
-Commenter
+
+commenter
  - id
  - user_id (nullable)
  - displayname

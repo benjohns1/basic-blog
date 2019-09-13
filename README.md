@@ -1,5 +1,5 @@
 # Basic Blog - Prototype Version 2
-Building off of the feature-complete Prototype 1, this version 2 uses Material Angular on the front-end.
+This basic blog implementation makes use of Material Angular on the front-end with a Go API back-end and Postgres for persistence.
 ## Run It
 1. Install & run Docker
 2. `git clone https://github.com/benjohns1/basic-blog`
@@ -10,7 +10,28 @@ Building off of the feature-complete Prototype 1, this version 2 uses Material A
    - username: `bobross`
    - password: `painter`
 
-### Infrastructure
+## Overview
+Building off of the feature-complete prototype 1, this version has a UI completely rewritten in Angular and has a slightly refactored Go API.
+### Front-End
+#### `./app`
+The Angular app uses Angular Material for styling, components and services for separation of concerns.
+ - `./src/app/app.component.ts`: Main app component and page layout
+ - `./src/app/app-routing.module.ts`: App routing
+ - `./src/app/blog.service.ts`: Wrapper service for blog REST API
+ - `./src/app/authentication.service.ts`: Wrapper service for dummy authentication API and storing the authenication token client-side
+ - `./src/app/post.ts`: Blog post model classes
+ - `./src/app/comment.ts`: Blog comment model classes
+ - `./src/app/comments`: Component handles the comment form and comment list
+ - `./src/app/login-form`: Component handles the authentication form
+ - `./src/app/page-not-found`: Page error component handler
+ - `./src/app/post`: Component handles displaying and editing a single post
+ - `./src/app/post-list`: Component displays lists of posts or deleted posts
+
+### Back-End
+#### `./services/api`
+On startup, the simple Go service in `cmd/main.go` connects and sets up the DB persistence layer in `./internal/postgres/postgres.go` along with some dummy data, then injects it into the API server `./internal/api/api.go`'s Run() function.
+
+## Infrastructure
 Docker and Compose
  - Web App: node alpine image as builder -> targets a nginx image that hosts the Angular web application
  - API Server: golang image as builder -> targets a scratch image that hosts the Go API binary
@@ -38,7 +59,7 @@ What I was hoping to do but ran out of time:
  - Implement authentication for real users
 
 ## 2019-09-12 (hour 8):
-Feature complete with raw UI, finished edit post functionality and updated readme for the initial prototype!
+Feature complete with raw UI, finished edit post functionality and updated readme for the initial prototype!  
 `git checkout prototype-1` to view this working version (WARNING: it has a face only a mother could love)
 
 ## 2019-09-11 (hours 5-7):

@@ -48,12 +48,11 @@ Docker and Compose
 
 ## Development
 Prereqs: Ensure you have the lastest Angular CLI and Docker installed.
-1. Start the DB and Adminer: `docker-compose --file=docker-compose.dev.yml up`
-2. First time only: in `app`, run `npm install`
+1. First time only: in `app`, run `npm install`
 2. Start the API and backing services with the `dev` script on Windows, or `./dev.sh` on OS X
-4. API URL: `localhost:3000`
-5. App URL: `localhost:8080`
-6. Adminer URL: `localhost:8081`
+3. API URL: `localhost:3000`
+4. App URL: `localhost:8080`
+5. Adminer URL: `localhost:8081`
 
 # Devlog
 ## 2019-09-15:

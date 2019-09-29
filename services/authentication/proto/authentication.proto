@@ -1,0 +1,28 @@
+syntax = "proto3";
+package basicblog.authentication;
+
+service Authentication {
+  // Logs user in
+  rpc Login (LoginCommand) returns (LoginResponse) {}
+
+  // Authenticates user token
+  rpc Authenticate (AuthenticateQuery) returns (AuthenticateResponse) {}
+}
+
+message LoginCommand {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string token = 2;
+}
+
+message AuthenticateQuery {
+  string token = 1;
+}
+
+message AuthenticateResponse {
+  bool success = 1;
+}

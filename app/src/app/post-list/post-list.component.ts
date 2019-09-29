@@ -12,21 +12,27 @@ export class PostListComponent implements OnInit {
 
   public posts: Post[] = [];
   public filter: BlogPostFilter;
+  public deleted: boolean = false;
 
-  constructor(private blogService: BlogService, route: ActivatedRoute) {
-    route.data.forEach(d => {
+  private loadAttempted: boolean = false;
+
+  constructor(private blogService: BlogService, private route: ActivatedRoute) {}
+
+  ngOnInit() {
+    this.route.data.subscribe(d => {
       if (this.filter !== d.filter) {
         this.filter = d.filter;
+        this.deleted = this.filter === BlogPostFilter.Deleted;
         this.loadPosts();
       }
     });
-    this.loadPosts();
-  }
-
-  ngOnInit() {
+    if (!this.loadAttempted) {
+      this.loadPosts();
+    }
   }
 
   private loadPosts() {
+    this.loadAttempted = true;
     this.blogService.getPosts(this.filter).subscribe(posts => {
       this.posts = posts;
     }, error => {

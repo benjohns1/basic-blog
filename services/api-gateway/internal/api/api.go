@@ -1,20 +1,33 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 )
 
-// Run configures and starts the API server
-func Run(apiPort int, db *sql.DB) {
-	// api
-	baseURL := "/api/v1/"
+// Config configures API
+type Config struct {
+	APIPort  int
+	Services *Services
+}
 
+// Services concrete service implementations
+type Services struct {
+	Authentication AuthenticationService
+	Post           PostService
+	Comment        CommentService
+}
+
+const baseURL = "/api/v1/"
+
+// Start configures and starts the API server
+func Start(cfg Config) {
+	// api
 	http.HandleFunc(baseURL, func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("%v: %v\n", r.Method, r.URL)
+		log.Printf("%v: %v\n", r.Method, r.URL)
 
 		if r.Method == "OPTIONS" {
 			// Allow CORS for localhost (NOT FOR PRODUCTION!)
@@ -29,7 +42,7 @@ func Run(apiPort int, db *sql.DB) {
 		pieces := strings.Split(r.URL.Path[len(baseURL):], "/")
 
 		if len(pieces) <= 0 {
-			writeError(w, fmt.Errorf("Invalid request"), http.StatusBadRequest)
+			writeError(w, fmt.Errorf("invalid request"), http.StatusBadRequest)
 			return
 		}
 
@@ -37,47 +50,47 @@ func Run(apiPort int, db *sql.DB) {
 		case "post":
 			switch {
 			case len(pieces) == 1 || pieces[1] == "":
-				postsHandler(w, r, db)
+				cfg.Services.Post.PostsHandler(w, r)
+				return
 			case len(pieces) == 2 || pieces[2] == "":
-				postHandler(w, r, pieces[1], db)
+				cfg.Services.Post.PostHandler(w, r, pieces[1])
+				return
 			case (len(pieces) == 3 || pieces[3] == "") && pieces[2] == "comment":
-				commentHandler(w, r, pieces[1], db)
+				cfg.Services.Comment.CommentsHandler(w, r, pieces[1])
+				return
 			default:
-				writeError(w, fmt.Errorf("Invalid request"), http.StatusBadRequest)
+				writeError(w, fmt.Errorf("invalid request"), http.StatusBadRequest)
 				return
 			}
 		case "authenticate":
 			if len(pieces) == 1 {
-				authenticateHandler(w, r)
-			} else {
-				writeError(w, fmt.Errorf("Not authenticated"), http.StatusUnauthorized)
+				cfg.Services.Authentication.LoginHandler(w, r)
 				return
 			}
+			writeError(w, fmt.Errorf("invalid request"), http.StatusBadRequest)
+			return
 		default:
-			writeError(w, fmt.Errorf("Unknown resource"), http.StatusForbidden)
+			writeError(w, fmt.Errorf("unknown resource"), http.StatusBadRequest)
 			return
 		}
 	})
-	fmt.Printf("starting server on port %d\n", apiPort)
-	http.ListenAndServe(fmt.Sprintf(":%d", apiPort), nil)
+	log.Printf("starting API gateway on port %d\n", cfg.APIPort)
+	err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.APIPort), nil)
+	if err != nil {
+		log.Fatalf("error starting server: %v", err)
+	}
 }
 
-func writeResponse(w http.ResponseWriter, r *http.Request, handler func() ([]byte, error)) {
-
-	o, err := handler()
-	if err != nil {
-		writeError(w, err, http.StatusInternalServerError)
-		return
-	}
-	if len(o) > 0 {
-		w.Header().Add("access-control-allow-origin", "*")
-		w.Header().Add("content-type", "application/json")
-		w.Write(o)
-		return
-	}
+func writeEmpty(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("access-control-allow-origin", "*")
 	w.WriteHeader(204)
-	return
+}
+
+func writeResponse(w http.ResponseWriter, r *http.Request, response []byte, status int) {
+	w.Header().Add("access-control-allow-origin", "*")
+	w.Header().Add("content-type", "application/json")
+	w.WriteHeader(status)
+	w.Write(response)
 }
 
 // ErrorResponse JSON wrapper for error string
@@ -92,7 +105,7 @@ func writeError(w http.ResponseWriter, err error, errorCode int) {
 	w.WriteHeader(errorCode)
 	errorBytes, err := json.Marshal(ErrorResponse{err.Error()})
 	if err != nil {
-		w.Write([]byte("Internal error"))
+		w.Write([]byte("internal error"))
 	}
 	w.Write(errorBytes)
 }

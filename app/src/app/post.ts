@@ -7,5 +7,5 @@ export class Post {
   author: string = "";
   createdTime: Date = new Date();
   deleted?: boolean = false;
-  comments: Comment[] = [];
+  comments?: Comment[] = [];
 }

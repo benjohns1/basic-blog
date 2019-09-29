@@ -7,15 +7,12 @@ import { AuthenticationService } from '../authentication.service';
   templateUrl: './login-form.component.html',
   styleUrls: ['./login-form.component.less']
 })
-export class LoginFormComponent implements OnInit {
+export class LoginFormComponent {
 
   public username = "";
   public password = "";
 
   constructor(private authenticationService: AuthenticationService, private router: Router) { }
-
-  ngOnInit() {
-  }
 
   public login() {
     this.authenticationService.login(this.username, this.password).subscribe(response => {

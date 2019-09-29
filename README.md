@@ -1,5 +1,5 @@
-# Basic Blog - Prototype Version 2
-This basic blog implementation makes use of Material Angular on the front-end with a Go API back-end and Postgres for persistence.
+# Basic Blog - Prototype Version 3 
+This basic blog implementation makes use of Material Angular on the front-end with a Go microservice back-end and Postgres for persistence.
 ## Run It
 1. Install & run Docker
 2. `git clone https://github.com/benjohns1/basic-blog`
@@ -11,7 +11,7 @@ This basic blog implementation makes use of Material Angular on the front-end wi
    - password: `painter`
 
 ## Overview
-Building off of the feature-complete prototype 1, this version has a UI completely rewritten in Angular and has a slightly refactored Go API.
+Building off of protoype version 2, this version has the Go API split into multiple microservices that communicate directly with each other using protobufs. 
 ### Front-End
 #### `./app`
 The Angular app uses Angular Material for styling, components and services for separation of concerns.
@@ -28,25 +28,37 @@ The Angular app uses Angular Material for styling, components and services for s
  - `./src/app/post-list`: Component displays lists of posts or deleted posts
 
 ### Back-End
-#### `./services/api`
-On startup, the simple Go service in `cmd/main.go` connects and sets up the DB persistence layer in `./internal/postgres/postgres.go` along with some dummy data, then injects it into the API server `./internal/api/api.go`'s Run() function.
+#### `./services/api-gateway`
+The API gateway accepts REST HTTP requests and composes a response from the various other services.
+
+#### `./services/authentication`
+The authentication service logs a user in (using dummy creds) and authenticates all API request tokens.
+
+#### `./services/comment`
+The comment service manages all blog comment CRUD operations.
+
+#### `./services/post`
+The post service manages all blog post CRUD operations.
 
 ## Infrastructure
 Docker and Compose
  - Web App: node alpine image as builder -> targets a nginx image that hosts the Angular web application
- - API Server: golang image as builder -> targets a scratch image that hosts the Go API binary
+ - API Services: golang image as builder -> targets a scratch image that hosts the Go service binary 
  - DB: postgres image (with adminer image for DB dev/inspection)
 
 ## Development
 Prereqs: Ensure you have the lastest Angular CLI and Docker installed.
 1. Start the DB and Adminer: `docker-compose --file=docker-compose.dev.yml up`
-2. In `services/api/cmd`, rebuild and start the API server after any changes: `go build -o blog && ./blog` (or `go build -o blog.exe && blog` on Windows)
-3. In `app`, start the client dev server and make changes: `ng serve`
+2. First time only: in `app`, run `npm install`
+2. Start the API and backing services with the `dev` script on Windows, or `./dev.sh` on OS X
 4. API URL: `localhost:3000`
 5. App URL: `localhost:8080`
 6. Adminer URL: `localhost:8081`
 
 # Devlog
+## 2019-09-15:
+Rebuilt API back-end with a microservice architecture and protobuf transport.
+
 ## 2019-09-12 (hours 8-10):
 Rebuilt front-end in Material Angular for a much cleaner UX  
 What I was hoping to do but ran out of time:

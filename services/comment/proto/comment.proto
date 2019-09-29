@@ -1,0 +1,35 @@
+syntax = "proto3";
+package basicblog.comment;
+
+service Comment {
+
+  rpc New (NewCommand) returns (NewResponse) {}
+  
+  rpc List (ListQuery) returns (ListResponse) {}
+}
+
+message NewCommand {
+  string body = 1;
+  string commenter = 2;
+  int32 post_id = 3;
+}
+
+message NewResponse {
+  int32 id = 1;
+}
+
+message ListQuery {
+  int32 post_id = 1;
+}
+
+message ListResponse {
+  repeated ViewResponse comments = 1;
+}
+
+message ViewResponse {
+  int32 id = 1;
+  int32 post_id = 2;
+  string body = 3;
+  string commenter = 4;
+  int64 createdTime = 5;
+}

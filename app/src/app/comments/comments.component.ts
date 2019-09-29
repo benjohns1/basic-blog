@@ -9,7 +9,7 @@ import { NgForm } from '@angular/forms';
   templateUrl: './comments.component.html',
   styleUrls: ['./comments.component.less']
 })
-export class CommentsComponent implements OnInit {
+export class CommentsComponent {
 
   @Input() public post: Post;
 
@@ -20,9 +20,6 @@ export class CommentsComponent implements OnInit {
   };
 
   constructor(private blogService: BlogService) { }
-
-  ngOnInit() {
-  }
 
   public submitComment(form: NgForm) {
     this.comment.postId = this.post.id;

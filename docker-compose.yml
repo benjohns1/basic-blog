@@ -5,20 +5,49 @@ services:
     restart: always
     environment:
       - POSTGRES_PASSWORD=NotSoSecretP455W0RD
-  webapp:
-    build: ./app
-    ports:
-      - 8080:8080
-  api:
-    build: ./services/api
-    ports:
-      - 3000:3000
-    environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_PASSWORD=NotSoSecretP455W0RD
   adminer:
     image: adminer
     restart: always
     ports:
       - 8081:8080
+  webapp:
+    build:
+      context: ./
+      dockerfile: ./app/Dockerfile
+    ports:
+      - 8080:8080
+  api-gateway:
+    build:
+      context: ./
+      dockerfile: ./services/api-gateway/Dockerfile
+    ports:
+      - 3000:3000
+    environment:
+      - API_PORT=3000
+      - AUTHENTICATION_ADDR=authentication:3001
+      - POST_ADDR=post:3002
+      - COMMENT_ADDR=comment:3003
+  authentication:
+    build:
+      context: ./
+      dockerfile: ./services/authentication/Dockerfile
+    environment:
+     - PORT=3001
+  post:
+    build:
+      context: ./
+      dockerfile: ./services/post/Dockerfile
+    environment:
+     - PORT=3002
+     - DB_HOST=db
+     - DB_PORT=5432
+     - DB_PASSWORD=NotSoSecretP455W0RD
+  comment:
+    build:
+      context: ./
+      dockerfile: ./services/comment/Dockerfile
+    environment:
+     - PORT=3003
+     - DB_HOST=db
+     - DB_PORT=5432
+     - DB_PASSWORD=NotSoSecretP455W0RD

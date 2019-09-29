@@ -20,7 +20,6 @@ export class BlogService {
   constructor(private http: HttpClient) { }
 
   public getPosts(postFilter: BlogPostFilter = BlogPostFilter.None): Observable<Post[]> {
-
     return this.http.get<Post[]>(`${this.baseUrl}/post/`, { headers: this.headers() }).pipe(
       map((response: Post[]) => {
         return response.filter(p => {
@@ -43,8 +42,9 @@ export class BlogService {
 
   public newComment(comment: NewComment): Observable<Object> {
     if (!comment.postId || comment.postId <= 0) {
-      console.error(comment);
-      throw Error("Post ID must be a positive integer");
+      return new Observable(o => {
+        o.error("Post ID must be a positive integer");
+      });
     }
 
     return this.http.post(`${this.baseUrl}/post/${comment.postId}/comment`, {
@@ -62,8 +62,9 @@ export class BlogService {
 
   public updatePost(post: Post): Observable<Object> {
     if (!post.id || post.id <= 0) {
-      console.error(post);
-      throw Error("Post ID must be a positive integer");
+      return new Observable(o => {
+        o.error("Post ID must be a positive integer");
+      });
     }
 
     return this.http.post(`${this.baseUrl}/post/${post.id}`, {
@@ -82,15 +83,12 @@ export class BlogService {
     }, { headers: this.headers() });
   }
 
-  private headers() {
+  private headers(headers = {}) {
     const token = window.sessionStorage.getItem("token");
-    if (!token) {
-      return {};
+    headers["Content-Type"] = "application/json"
+    if (token) {
+      headers["Authorization"] = token
     }
-
-    return {
-      "Content-Type": "application/json",
-      "Authorization": window.sessionStorage.getItem("token"),
-    };
+    return headers
   }
 }

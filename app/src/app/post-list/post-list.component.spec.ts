@@ -1,6 +1,11 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { PageNotFoundComponent } from '../page-not-found/page-not-found.component';
+import { PostComponent } from '../post/post.component';
 import { PostListComponent } from './post-list.component';
+import { LoginFormComponent } from '../login-form/login-form.component';
+import { MatListModule } from '@angular/material/list';
+import { AppRoutingModule } from '../app-routing.module';
 
 describe('PostListComponent', () => {
   let component: PostListComponent;
@@ -8,7 +13,13 @@ describe('PostListComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ PostListComponent ]
+      declarations: [
+        PostListComponent,
+        LoginFormComponent,
+        PostComponent,
+        PageNotFoundComponent
+      ],
+      imports: [AppRoutingModule, MatListModule]
     })
     .compileComponents();
   }));
